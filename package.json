@@ -2,7 +2,7 @@
   "name": "cdb",
   "displayName": "cdb",
   "description": "Extension to launch VSCode debugging session from command line",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "repository": "https://github.com/vladimir-kotikov/cdb.git",
   "engines": {
     "vscode": "^1.96.0"
