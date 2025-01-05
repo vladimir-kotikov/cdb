@@ -2,22 +2,13 @@ import path from "path";
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
 import { adapters } from "./adapters";
+import { mapFirst } from "./array_utils";
 
 interface DebugParams {
   cwd?: string;
   program: string;
   [key: string]: string | string[] | undefined;
 }
-
-const mapFirst = <T, U>(arr: T[], fn: (t: T) => U | undefined): U | undefined => {
-  for (const item of arr) {
-    const result = fn(item);
-    if (result !== undefined) {
-      return result;
-    }
-  }
-  return undefined;
-};
 
 const isSubpath = (current: string, maybeParent: string): boolean => {
   const relative = path.relative(maybeParent, current);
@@ -29,7 +20,7 @@ class DebugUriHandler implements vscode.UriHandler {
     const action = uri.path;
     const urlParams = new URLSearchParams(uri.query);
 
-    const debugParams: { program?: string, [key: string]: any } = {};
+    const debugParams: { program?: string;[key: string]: any } = {};
     for (const key of urlParams.keys()) {
       const values = urlParams.getAll(key);
       debugParams[key] = values.length === 1 ? values[0] : values;
@@ -64,10 +55,10 @@ class DebugUriHandler implements vscode.UriHandler {
     vscode.debug.startDebugging(workspaceFolder, {
       name: `cdb: ${debugParams.program}`,
       request: "launch",
-      ...debugAdapterParams,
+      justMyCode: false,
+      ...debugParams,
     });
   }
-
 
   handleUri(uri: vscode.Uri): vscode.ProviderResult<void> {
     const [action, params] = this.parseUri(uri);
