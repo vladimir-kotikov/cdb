@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+set -e
+
+# multi-line string for usage
+usage=$(cat <<EOF
+This script gathers all command line arguments and packs into a CDB extension uri
+
+Usage: cdb [<cdb args>, ...] <command or file> [<args>, ...]
+
+Arguments:
+ -e, --env <key:value>  Set an environment variable to pass to the debuggee
+ -s, --stop-on-entry  Stop on the first instruction of the program
+ --cwd <path>  Set the working directory, \$PWD by default
+
+Example: cdb --cwd ../ -e foo:bar python -L -m http.server 8000
+EOF
+)
+
+if [[ $# -eq 0 ]]; then
+    echo "${usage}"
+    exit 1
+fi
+
+args=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --cwd)
+            shift
+            args+=("cwd=$(realpath $1)")
+            ;;
+        --env|-e)
+            shift
+            args+=("env=$(echo $1 | tr ':' '\n' | sed 's/^/export /')")
+            ;;
+        --stop-on-entry|-s)
+            args+=("stopOnEntry=true")
+            ;;
+        *)
+            break
+            ;;
+    esac
+    shift
+done
+
+if [[ ! " ${args[@]} " =~ " cwd=" ]]; then
+    args+=("cwd=$(pwd)")
+fi
+
+# add all unparsed args as program parameter, replacing spaces with %20
+args+=("program=$(echo $* | sed 's/ /%20/g')")
+
+# Combine args into url-encoded query string
+query=$(IFS='&'; echo "${args[*]}")
+uri="vscode://vlkoti.cdb/debug?${query}"
+
+open $uri
+
+
