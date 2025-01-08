@@ -43,6 +43,12 @@ while [[ $# -gt 0 ]]; do
     shift
 done
 
+# check if we running vscode insiders and use corresponding scheme
+schema="vscode"
+if [[ -n $VSCODE_GIT_ASKPASS_MAIN && $VSCODE_GIT_ASKPASS_MAIN == *Insiders* ]]; then
+  schema="vscode-insiders"
+fi
+
 if [[ ! " ${args[@]} " =~ " cwd=" ]]; then
     args+=("cwd=$(pwd)")
 fi
@@ -52,7 +58,7 @@ args+=("program=$(echo $* | sed 's/ /%20/g')")
 
 # Combine args into url-encoded query string
 query=$(IFS='&'; echo "${args[*]}")
-uri="vscode://vlkoti.cdb/debug?${query}"
+uri="${schema}://vlkoti.cdb/debug?${query}"
 
 open $uri
 
