@@ -14,7 +14,9 @@ interface CdbParams {
 
 const isSubpath = (current: string, maybeParent: string): boolean => {
   const relative = path.relative(maybeParent, current);
-  return !relative || !relative.startsWith("..") && !path.isAbsolute(relative);
+  return (
+    !relative || (!relative.startsWith("..") && !path.isAbsolute(relative))
+  );
 };
 
 const installCdb = async (sourceDir: string) => {
@@ -29,7 +31,7 @@ class DebugUriHandler implements vscode.UriHandler {
     const action = uri.path;
     const urlParams = new URLSearchParams(uri.query);
 
-    const debugParams: { program?: string;[key: string]: any } = {};
+    const debugParams: { program?: string; [key: string]: any } = {};
     for (const key of urlParams.keys()) {
       const values = urlParams.getAll(key);
       debugParams[key] = values.length === 1 ? values[0] : values;
@@ -49,13 +51,13 @@ class DebugUriHandler implements vscode.UriHandler {
   private handleDebug(cdbParams: CdbParams): vscode.ProviderResult<any> {
     const { cwd, program } = cdbParams;
     const workspaceFolder = !!cwd
-      ? vscode.workspace.workspaceFolders?.find((f) =>
-        isSubpath(cwd!, f.uri.fsPath),
-      )
+      ? vscode.workspace.workspaceFolders?.find(f =>
+          isSubpath(cwd!, f.uri.fsPath),
+        )
       : undefined;
 
     // TODO: More robust args parsing
-    const debugParams = mapFirst(adapters, (adapter) =>
+    const debugParams = mapFirst(adapters, adapter =>
       adapter(program.split(" "), cwd),
     );
     if (!debugParams) {
@@ -92,8 +94,10 @@ class DebugUriHandler implements vscode.UriHandler {
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.registerUriHandler(new DebugUriHandler()),
-    vscode.commands.registerCommand("cdb.install", () => installCdb(context.extensionPath)),
+    vscode.commands.registerCommand("cdb.install", () =>
+      installCdb(context.extensionPath),
+    ),
   );
 }
 
-export function deactivate() { }
+export function deactivate() {}

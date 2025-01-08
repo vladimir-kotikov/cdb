@@ -37,7 +37,7 @@
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
-    "fmt": "prettier --write src/**/*.ts",
+    "fmt": "prettier --write src",
     "test": "vscode-test"
   },
   "devDependencies": {
