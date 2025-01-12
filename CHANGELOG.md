@@ -4,6 +4,10 @@ All notable changes to the "cdb" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## 0.2.1
+
+- Patch to update changelog
+
 ## 0.2.0
 
 - Detect running from code-instiders terminal and use corresponding URL
