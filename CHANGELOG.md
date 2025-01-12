@@ -4,11 +4,12 @@ All notable changes to the "cdb" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## 0.2.0
 
-- Added license and readme details
+- Detect running from code-instiders terminal and use corresponding URL
+- Added support for directly calling some well-known python modules (so far `pytest` only), e.g. `cdb pytest` instead of `cdb python -m pytest`
 
-## 1.0.0
+## 0.1.0
 
 - More robust python arguments parsing
 - 'cdb' shell command added to start debugging
@@ -16,7 +17,3 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## 0.0.2
 
 - Initial working version, supporting python debugger only
-
-## 0.0.1
-
-- Initial release, mainly for development purposes
