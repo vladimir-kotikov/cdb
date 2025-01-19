@@ -58,7 +58,7 @@ args+=("program=$(echo $* | sed 's/ /%20/g')")
 
 # Combine args into url-encoded query string
 query=$(IFS='&'; echo "${args[*]}")
-uri="${schema}://vlkoti.cdb/debug?${query}"
+uri="${schema}://vlkoti.cdb/launch?${query}"
 
 open $uri
 
