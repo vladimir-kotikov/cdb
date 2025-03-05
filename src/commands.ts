@@ -4,7 +4,8 @@ import { promisify } from "node:util";
 
 import { compile, JSONSchema } from "json-schema-to-typescript";
 import * as vscode from "vscode";
-import { filterMap } from "./array_utils";
+
+import { curry } from "./util/fp";
 
 type Visitor = (key: string, obj: any) => void;
 
@@ -90,11 +91,11 @@ const unknownFields = [
   "deprecationMessage",
 ];
 
-function forKeyInObject(obj: any, ...visitors: Visitor[]): any {
+function forKeyInObject(visitors: Visitor[], obj: any): any {
   for (const key in obj) {
     visitors.forEach(visit => visit(key, obj));
     if (typeof obj[key] === "object") {
-      forKeyInObject(obj[key], ...visitors);
+      forKeyInObject(visitors, obj[key]);
     }
   }
   return obj;
@@ -113,41 +114,64 @@ const renameLabelToTitle = (key: string, obj: any) => {
   }
 };
 
-export async function generateDebugAdapterSchemas(): Promise<void> {
-  let debuggersSchemas = filterMap(
-    vscode.extensions.all,
-    ({ packageJSON }) => packageJSON.contributes?.debuggers,
-  )
-    .flat(1)
-    .reduce((acc, { type, deprecated, configurationAttributes }) => {
-      if (type === "*" || deprecated || !configurationAttributes) {
-        return acc;
-      }
+type DebuggerDef = {
+  type: string;
+  deprecated?: boolean;
+  configurationAttributes?: Record<string, JSONSchema>;
+};
 
-      Object.entries(configurationAttributes).forEach(([action, schema]) => {
-        acc[`${type}_${action}`] = {
-          ...forKeyInObject(schema, removeUnknownFields, renameLabelToTitle),
-          ...commonDefinitions,
-        };
-      });
+const getExtensionDebuggers = ({
+  packageJSON,
+}: vscode.Extension<any>): DebuggerDef[] => packageJSON.contributes?.debuggers;
 
-      return acc;
-    }, {});
+const isSupportedDebugger = (
+  definition?: DebuggerDef,
+): definition is DebuggerDef & {
+  configurationAttributes: Record<string, JSONSchema>;
+} =>
+  definition?.type !== "*" &&
+  !definition?.deprecated &&
+  !!definition?.configurationAttributes;
 
-  await Object.entries(debuggersSchemas).reduce<Promise<any>>(
-    (promise, [key, schema]) =>
-      promise
-        .then(() => compile(schema as JSONSchema, key))
-        .then(ts =>
-          vscode.workspace
-            .openTextDocument(vscode.Uri.parse("untitled:///" + key + ".ts"))
-            .then(doc => vscode.window.showTextDocument(doc))
-            .then(editor =>
-              editor.edit(edit => edit.insert(new vscode.Position(0, 0), ts)),
-            ),
-        ),
-    Promise.resolve(),
-  );
+const buildDebugConfigurationSchema = (schema: JSONSchema): JSONSchema => ({
+  ...forKeyInObject([removeUnknownFields, renameLabelToTitle], schema),
+  ...commonDefinitions,
+});
+
+const openUntitledDocument = curry(
+  (filename: string, content: string): PromiseLike<boolean> =>
+    vscode.workspace
+      .openTextDocument(vscode.Uri.parse("untitled:///" + filename))
+      .then(doc => vscode.window.showTextDocument(doc))
+      .then(editor =>
+        editor.edit(edit => edit.insert(new vscode.Position(0, 0), content)),
+      ),
+);
+
+const promiseChain = <T>(
+  fn: (next: T) => Promise<any>,
+): [(chain: Promise<any>, next: T) => Promise<any>, Promise<any>] => [
+  (chain: Promise<any>, next: T) => chain.then(() => fn(next)),
+  Promise.resolve(),
+];
+
+export async function generateDebugAdapterSchemas(): Promise<any> {
+  return vscode.extensions.all
+    .flatMap(getExtensionDebuggers)
+    .filter(isSupportedDebugger)
+    .flatMap(({ type, configurationAttributes }) =>
+      Object.entries(configurationAttributes).map(
+        ([action, schema]): [JSONSchema, string] => [
+          buildDebugConfigurationSchema(schema),
+          `${type}_${action}`,
+        ],
+      ),
+    )
+    .reduce(
+      ...promiseChain<[JSONSchema, string]>(([schema, filename]) =>
+        compile(schema, filename).then(openUntitledDocument(filename + ".ts")),
+      ),
+    );
 }
 
 export async function installCdb(sourceDir: string): Promise<void> {

@@ -1,22 +1,14 @@
-import path from "path";
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
 import { ProviderResult, Uri, UriHandler } from "vscode";
-import { mapFirst } from "./array_utils";
 import { adapters } from "./config_adapters";
+import { takeFirst } from "./util/array";
 
 interface CdbParams {
   cwd?: string;
   program: string;
   [key: string]: string | string[] | undefined;
 }
-
-const isSubpath = (current: string, maybeParent: string): boolean => {
-  const relative = path.relative(maybeParent, current);
-  return (
-    !relative || (!relative.startsWith("..") && !path.isAbsolute(relative))
-  );
-};
 
 export class CdbUriHandler implements UriHandler {
   private parseUri(uri: Uri): [string, CdbParams] {
@@ -47,8 +39,9 @@ export class CdbUriHandler implements UriHandler {
       : undefined;
 
     // TODO: More robust args parsing
-    const debugConfiguration = mapFirst(adapters, configAdapter =>
-      configAdapter(program.split(" "), cwd),
+    const debugConfiguration = takeFirst(
+      configAdapter => configAdapter("launch", program.split(" "), cwd),
+      adapters,
     );
 
     if (!debugConfiguration) {

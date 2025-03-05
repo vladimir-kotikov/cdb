@@ -1,24 +1,19 @@
-import path from "node:path";
 import { match, P } from "ts-pattern";
 import { Pattern } from "ts-pattern/types";
 import { DebugConfigAdapter } from ".";
-import { partition } from "../array_utils";
+import { partition } from "../util/array";
+import { maybeResolve } from "../util/path";
+import { isPathToProgram, isPathToScript } from "../util/predicates";
 import { DebugpyLaunchConfiguration } from "./debugpy_schema";
 
 const programSpecifierRe = /^-m|-c|-|.*\.py$/;
 const knownModules = ["pytest"];
 
-const isPathToPythonScript = (program: string) =>
-  path.extname(program) === ".py";
-const isPathToPython = (program: string) => path.basename(program) === "python";
 const moduleWithArgs: Pattern<string[]> = ["-m", P.string, ...P.array()];
 const scriptWithArgs: Pattern<string[]> = [
-  P.when(isPathToPythonScript),
+  P.when(isPathToScript(".py")),
   ...P.array(),
 ];
-
-const maybeResolve = (cwd: string | undefined, program: string) =>
-  cwd === undefined ? program : path.resolve(cwd, program);
 
 // Some possible options for argv:
 // [python, ...pythonArgs, program.py, ...programArgs]
@@ -42,12 +37,13 @@ export const debugpyConfigAdapter: DebugConfigAdapter<
   };
 
   const [program, ...args] = argv;
-  if (isPathToPython(program)) {
+  if (isPathToProgram("python", program)) {
     if (program !== "python") {
       config.python = maybeResolve(cwd, program);
     }
-    const [pythonArgs, programArgv] = partition(args, arg =>
-      programSpecifierRe.test(arg),
+    const [pythonArgs, programArgv] = partition(
+      arg => programSpecifierRe.test(arg),
+      args,
     );
     if (pythonArgs.length > 0) {
       config.pythonArgs = pythonArgs;
