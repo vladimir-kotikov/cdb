@@ -12,6 +12,13 @@
 				"${workspaceFolder}/dist/**/*.js"
 			],
 			"preLaunchTask": "${defaultBuildTask}"
+		},
+		{
+			"name": "Run unit tests",
+			"type": "node",
+			"request": "launch",
+			"runtimeExecutable": "npx",
+			"program": "jest"
 		}
 	]
 }

@@ -1,80 +1,92 @@
+import { Option as Maybe, Result } from "@swan-io/boxed";
 import { match, P } from "ts-pattern";
-import { Pattern } from "ts-pattern/types";
 import { DebugConfigAdapter } from ".";
-import { partition } from "../util/array";
-import { maybeResolve } from "../util/path";
-import { isPathToProgram, isPathToScript } from "../util/predicates";
+import { Dict, List } from "../lib/collections";
+import { either, equals, isUndefined, not, oneOf } from "../lib/operators";
+import { isPathToProgram, isPathToScript, maybeResolve } from "../lib/path";
 import { DebugpyLaunchConfiguration } from "./debugpy_schema";
 
-const programSpecifierRe = /^-m|-c|-|.*\.py$/;
 const knownModules = ["pytest"];
+const scriptFlags = ["-m", "-c", "-"];
+const pythonInterpreters = ["python", "python3"];
 
-const moduleWithArgs: Pattern<string[]> = ["-m", P.string, ...P.array()];
-const scriptWithArgs: Pattern<string[]> = [
-  P.when(isPathToScript(".py")),
-  ...P.array(),
-];
+const isPathToPython = isPathToProgram(pythonInterpreters);
+const isPythonScriptOrModule = either(
+  isPathToScript(".py"),
+  oneOf(knownModules),
+);
 
-// Some possible options for argv:
-// [python, ...pythonArgs, program.py, ...programArgs]
-// [python, ...pythonArgs, -m, module, ...programArgs]
-// [python, ...pythonArgs, -c, code]
-// [python, ...pythonArgs, -]
-// [program.py, ...programArgs]
-// [module, ...programArgs]
+const checkPathToPython = (p: string): Result<string, string> =>
+  isPathToPython(p) ? Result.Ok(p) : Result.Error("Invalid python path");
+
+const checkPathToPythonProgram = (p: string): Result<string, string> =>
+  isPythonScriptOrModule(p)
+    ? Result.Ok(p)
+    : Result.Error("Invalid program path");
+
+const parsePythonArgv = (
+  [python, ...pythonArgs]: string[],
+  cwd: Maybe<string> = Maybe.None(),
+) =>
+  python === undefined
+    ? Result.Ok({})
+    : checkPathToPython(python).map(python => ({
+        ...(oneOf(pythonInterpreters, python)
+          ? {}
+          : { python: maybeResolve(cwd, python) }),
+        ...Dict.filterValues({ pythonArgs }, not(List.empty)),
+      }));
+
+const parseModuleArgv = ([module, ...args]: string[]) =>
+  match(module)
+    .when(isUndefined, () => Result.Error("No module specified"))
+    .with(P.string.regex(/^[a-zA-Z_]+\w*(\.[a-zA-Z_]+\w*)*$/), () =>
+      Result.Ok({ module, ...Dict.filterValues({ args }, not(List.empty)) }),
+    )
+    .otherwise(() => Result.Error("Invalid module name"));
+
+const parseProgramArgv = (
+  [program, ...args]: string[],
+  cwd: Maybe<string> = Maybe.None(),
+) =>
+  match(program)
+    .when(isUndefined, () => Result.Error("No file or module specified"))
+    .when(oneOf(knownModules), () => parseModuleArgv([program, ...args]))
+    .when(equals("-m"), () => parseModuleArgv(args))
+    .when(oneOf(["-c", "-"]), () =>
+      Result.Error("Can't launch script from stdin or command line"),
+    )
+    .otherwise(() =>
+      checkPathToPythonProgram(program).map(program => ({
+        program: maybeResolve(cwd, program),
+        ...Dict.filterValues({ args }, not(List.empty)),
+      })),
+    );
+
 export const debugpyConfigAdapter: DebugConfigAdapter<
   DebugpyLaunchConfiguration
-> = (action, argv, cwd) => {
+> = (action, argv, cwd = Maybe.None()) => {
   if (action !== "launch") {
     console.warn("debugpy supports only launch");
-    return;
+    return Maybe.None();
   }
 
-  const config: DebugpyLaunchConfiguration = {
-    type: "debugpy",
-    request: "launch",
-    name: `Cdb: debugpy`,
-  };
+  const [pythonArgv, programArgv] = List.partition(
+    either(isPythonScriptOrModule, oneOf(scriptFlags)),
+    argv,
+  );
 
-  const [program, ...args] = argv;
-  if (isPathToProgram("python", program)) {
-    if (program !== "python") {
-      config.python = maybeResolve(cwd, program);
-    }
-    const [pythonArgs, programArgv] = partition(
-      arg => programSpecifierRe.test(arg),
-      args,
-    );
-    if (pythonArgs.length > 0) {
-      config.pythonArgs = pythonArgs;
-    }
-    argv = programArgv;
-  }
-
-  if (knownModules.includes(program)) {
-    // prepend with -m to have uniform handling with the case when module is specified
-    argv = ["-m", ...argv];
-  }
-
-  // Now argv is one of
-  //  [program.py, ...programArgs]
-  //  [-m, module, ...programArgs]
-  //  [-c, code]
-  //  [-]
-  //  [...something else]
-  return match(argv)
-    .with(scriptWithArgs, ([program, ...args]) => ({
-      ...config,
-      program: maybeResolve(cwd, program),
-      ...(args.length > 0 && { args }),
+  return Result.all([
+    parsePythonArgv(pythonArgv, cwd),
+    parseProgramArgv(programArgv, cwd),
+  ])
+    .map(([pythonParams, programParams]) => ({
+      type: "debugpy" as "debugpy",
+      request: "launch" as "launch",
+      name: `Cdb: debugpy`,
+      ...pythonParams,
+      ...programParams,
     }))
-    .with(moduleWithArgs, ([_, module, ...args]) => ({
-      ...config,
-      module,
-      ...(args.length > 0 && { args }),
-    }))
-    .otherwise(() => {
-      console.warn("Cannot debug this command");
-      return undefined;
-    });
+    .tapError(console.error)
+    .toOption();
 };

@@ -4,8 +4,26 @@ import { promisify } from "node:util";
 
 import { compile, JSONSchema } from "json-schema-to-typescript";
 import * as vscode from "vscode";
+import { Task } from "./lib/collections";
+import { apply } from "./lib/operators";
 
-import { curry } from "./util/fp";
+interface DebuggerContribution {
+  type: string;
+  configurationAttributes: {
+    [key: string]: JSONSchema;
+  };
+  deprecated?: boolean;
+}
+
+declare namespace code {
+  export interface Extension<T> extends vscode.Extension<T> {
+    packageJSON: {
+      contributes?: {
+        debuggers?: DebuggerContribution[];
+      };
+    };
+  }
+}
 
 type Visitor = (key: string, obj: any) => void;
 
@@ -114,69 +132,57 @@ const renameLabelToTitle = (key: string, obj: any) => {
   }
 };
 
-type DebuggerDef = {
-  type: string;
-  deprecated?: boolean;
-  configurationAttributes?: Record<string, JSONSchema>;
-};
+const extensionDebuggersContributions = (extension: vscode.Extension<any>) =>
+  extension.packageJSON.contributes?.debuggers ?? [];
 
-const getExtensionDebuggers = ({
-  packageJSON,
-}: vscode.Extension<any>): DebuggerDef[] => packageJSON.contributes?.debuggers;
+const isSupportedDebugger = ({
+  type,
+  deprecated,
+  configurationAttributes,
+}: DebuggerContribution) =>
+  type !== "*" && !deprecated && configurationAttributes;
 
-const isSupportedDebugger = (
-  definition?: DebuggerDef,
-): definition is DebuggerDef & {
-  configurationAttributes: Record<string, JSONSchema>;
-} =>
-  definition?.type !== "*" &&
-  !definition?.deprecated &&
-  !!definition?.configurationAttributes;
-
-const buildDebugConfigurationSchema = (schema: JSONSchema): JSONSchema => ({
+const prepareSchema = (schema: JSONSchema) => ({
   ...forKeyInObject([removeUnknownFields, renameLabelToTitle], schema),
   ...commonDefinitions,
 });
 
-const openUntitledDocument = curry(
-  (filename: string, content: string): PromiseLike<boolean> =>
-    vscode.workspace
-      .openTextDocument(vscode.Uri.parse("untitled:///" + filename))
-      .then(doc => vscode.window.showTextDocument(doc))
-      .then(editor =>
-        editor.edit(edit => edit.insert(new vscode.Position(0, 0), content)),
-      ),
-);
+const fetchDebuggerConfigurationSchemas = ({
+  type,
+  configurationAttributes,
+}: DebuggerContribution): [string, JSONSchema][] =>
+  Object.entries(configurationAttributes).map(([action, schema]) => [
+    `${type}_${action}`,
+    prepareSchema(schema),
+  ]);
 
-const promiseChain = <T>(
-  fn: (next: T) => Promise<any>,
-): [(chain: Promise<any>, next: T) => Promise<any>, Promise<any>] => [
-  (chain: Promise<any>, next: T) => chain.then(() => fn(next)),
-  Promise.resolve(),
-];
-
-export async function generateDebugAdapterSchemas(): Promise<any> {
-  return vscode.extensions.all
-    .flatMap(getExtensionDebuggers)
-    .filter(isSupportedDebugger)
-    .flatMap(({ type, configurationAttributes }) =>
-      Object.entries(configurationAttributes).map(
-        ([action, schema]): [JSONSchema, string] => [
-          buildDebugConfigurationSchema(schema),
-          `${type}_${action}`,
-        ],
-      ),
-    )
-    .reduce(
-      ...promiseChain<[JSONSchema, string]>(([schema, filename]) =>
-        compile(schema, filename).then(openUntitledDocument(filename + ".ts")),
-      ),
+const renderConfigurationSchema =
+  (className: string, schema: JSONSchema): Task =>
+  () =>
+    compile(schema, className).then(
+      ts =>
+        vscode.workspace
+          .openTextDocument(
+            vscode.Uri.parse("untitled:///" + className + ".ts"),
+          )
+          .then(vscode.window.showTextDocument)
+          .then(editor =>
+            editor.edit(edit => edit.insert(new vscode.Position(0, 0), ts)),
+          ) as Promise<void>,
     );
-}
 
-export async function installCdb(sourceDir: string): Promise<void> {
+export const generateDebugAdapterSchemas = (): Promise<void> =>
+  vscode.extensions.all
+    .flatMap(extensionDebuggersContributions)
+    .filter(isSupportedDebugger)
+    .flatMap(fetchDebuggerConfigurationSchemas)
+    .map(apply(renderConfigurationSchema))
+    .reduce(Task.compose)
+    .call(this);
+
+export const installCdb = (sourceDir: string) => async (): Promise<void> => {
   const source = `/usr/local/bin/cdb`;
   const target = path.join(sourceDir, "cdb");
   const command = `osascript -e "do shell script \\"mkdir -p /usr/local/bin && ln -sf \'${target}\' \'${source}\'\\" with administrator privileges"`;
   await promisify(exec)(command);
-}
+};

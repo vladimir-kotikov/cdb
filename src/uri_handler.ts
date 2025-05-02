@@ -1,74 +1,68 @@
+import { Array as List, Option as Maybe, Result } from "@swan-io/boxed";
+import { match, P } from "ts-pattern";
 import { URLSearchParams } from "url";
 import * as vscode from "vscode";
-import { ProviderResult, Uri, UriHandler } from "vscode";
+import { Uri } from "vscode";
 import { adapters } from "./config_adapters";
-import { takeFirst } from "./util/array";
+import { curry } from "./lib/curry";
+import { pass } from "./lib/operators";
 
 interface CdbParams {
-  cwd?: string;
+  action: "launch" | "attach";
   program: string;
-  [key: string]: string | string[] | undefined;
+  cwd: Maybe<string>;
 }
 
-export class CdbUriHandler implements UriHandler {
-  private parseUri(uri: Uri): [string, CdbParams] {
-    const action = uri.path;
-    const urlParams = new URLSearchParams(uri.query);
-
-    const debugParams: { program?: string; [key: string]: any } = {};
-    for (const key of urlParams.keys()) {
-      const values = urlParams.getAll(key);
-      debugParams[key] = values.length === 1 ? values[0] : values;
-    }
-
-    if (Array.isArray(debugParams.cwd)) {
-      throw new Error("Expected cwd to be a single value");
-    }
-
-    if (!debugParams.program) {
-      throw new Error("Expected program to be set");
-    }
-
-    return [action, { ...debugParams, program: debugParams.program }];
-  }
-
-  private handleDebug(cdbParams: CdbParams): ProviderResult<void> {
-    const { cwd, program } = cdbParams;
-    const workspaceFolder = !!cwd
-      ? vscode.workspace.getWorkspaceFolder(Uri.file(cwd!))
-      : undefined;
-
-    // TODO: More robust args parsing
-    const debugConfiguration = takeFirst(
-      configAdapter => configAdapter("launch", program.split(" "), cwd),
-      adapters,
+const validateAction = (action: string): Result<"launch" | "attach", string> =>
+  match(action)
+    .with("debug", () => Result.Ok("attach" as const))
+    .with(P.union("attach", "launch"), Result.Ok)
+    .otherwise(action =>
+      Result.Error(
+        `Unknown action: ${action}. Supported actions are: attach, launch`,
+      ),
     );
 
-    if (!debugConfiguration) {
-      return vscode.window
-        .showErrorMessage(
-          `Could not start debug session: unknown program ${program}`,
-        )
-        .then();
-    }
+const validateProgram = (program: string | null): Result<string, string> =>
+  program
+    ? Result.Ok(program)
+    : Result.Error("Missing required parameter: program");
 
-    return vscode.debug
-      .startDebugging(workspaceFolder, {
-        ...debugConfiguration,
-        justMyCode: false,
-        name: `cdb: ${program}`,
-      })
-      .then();
-  }
+const parseUri = (uri: Uri): Result<CdbParams, string> => {
+  // Remove the leading slash from the path
+  const action = uri.path.slice(1);
+  const urlParams = new URLSearchParams(uri.query);
 
-  handleUri(uri: Uri): ProviderResult<void> {
-    const [action, params] = this.parseUri(uri);
+  return Result.allFromDict({
+    action: validateAction(action),
+    program: validateProgram(urlParams.get("program")),
+    cwd: Result.Ok(Maybe.fromNullable(urlParams.get("cwd"))),
+  });
+};
 
-    if (action === "/debug") {
-      return this.handleDebug(params);
-    }
+const handleDebug = (cdbParams: CdbParams): Result<Thenable<any>, string> => {
+  const { action, program, cwd } = cdbParams;
+  const workspaceFolder = cwd
+    .map(Uri.file)
+    .map(vscode.workspace.getWorkspaceFolder);
 
-    const errorMessage = `Could not start debug session: unknown action ${action}`;
-    return vscode.window.showErrorMessage(errorMessage).then();
-  }
-}
+  const startDebugging = curry(vscode.debug.startDebugging)(
+    workspaceFolder.toUndefined(),
+  );
+
+  return List.findMap(adapters, configAdapter =>
+    configAdapter(action, program.split(" "), cwd),
+  )
+    .map(debugConfiguration => ({ ...debugConfiguration, justMyCode: false }))
+    .map(startDebugging)
+    .toResult("No adapter found");
+};
+
+export const handleUri = (uri: Uri): Thenable<any> =>
+  parseUri(uri)
+    .flatMap(handleDebug)
+    .match({
+      Ok: pass,
+      Error: error =>
+        vscode.window.showErrorMessage(`Could not parse URI: ${error}`),
+    });

@@ -1,64 +1,85 @@
-import { match, P } from "ts-pattern";
-import { Pattern } from "ts-pattern/types";
+import { Option as Maybe, Result } from "@swan-io/boxed";
+import { match } from "ts-pattern";
 import { DebugConfigAdapter } from ".";
-import { partition } from "../util/array";
-import { maybeResolve } from "../util/path";
-import { isPathToProgram, isPathToScript } from "../util/predicates";
+import { Dict, List } from "../lib/collections";
+import { either, equals, isUndefined, not } from "../lib/operators";
+import { isPathToProgram, isPathToScript, maybeResolve } from "../lib/path";
 import { NodeLaunchConfiguration } from "./node_schema";
 
-const isPathToNodeScript = isPathToScript(/\.[me]?[jt]s$/);
+type RuntimeParams = {
+  runtimeExecutable?: string;
+  runtimeArgs?: string[];
+};
+
+type ProgramParams = {
+  program: string;
+  args?: string[];
+};
+
+const isPathToNodeScript = isPathToScript([
+  ".js",
+  ".cjs",
+  ".mjs",
+  ".ts",
+  ".cts",
+  ".mts",
+]);
+const checkPathToNodeScript = (p: string): Result<string, string> =>
+  isPathToNodeScript(p) ? Result.Ok(p) : Result.Error("Invalid script path");
+
 const isNodeScriptArg = (arg: string, i: number, args: readonly string[]) =>
   isPathToNodeScript(arg) && args[i - 1] !== "-r";
-const scriptWithArgs: Pattern<string[]> = [
-  P.when(isPathToNodeScript),
-  ...P.array(),
-];
 
-// Some possible options for argv:
-// node -r ./gtm_bootstrap.js ./server_bin.js
-// node ./server.js
-// node --inspect-brk=9229 ./server.js
-// ./my_script.mts
+export const parseRuntimeArgv = (
+  [runtimeExecutable, ...runtimeArgs]: string[],
+  cwd: Maybe<string>,
+): Result<RuntimeParams, string> =>
+  match(runtimeExecutable)
+    .returnType<Result<RuntimeParams, string>>()
+    .when(either(isUndefined, equals("node")), () => Result.Ok({}))
+    .when(isPathToProgram("node"), () =>
+      Result.Ok({ runtimeExecutable: maybeResolve(cwd, runtimeExecutable) }),
+    )
+    .otherwise(() => Result.Error("Invalid runtime executable"))
+    .map(params => ({
+      ...params,
+      ...Dict.filterValues({ runtimeArgs }, not(List.empty)),
+    }));
+
+export const parseProgramArgv = (
+  [program, ...args]: string[],
+  cwd: Maybe<string>,
+): Result<ProgramParams, string> =>
+  program === undefined
+    ? Result.Error("Program is undefined")
+    : checkPathToNodeScript(program).map(program => ({
+        program: maybeResolve(cwd, program),
+        ...(args.length > 0 ? { args } : {}),
+      }));
 
 export const nodeConfigAdapter: DebugConfigAdapter<NodeLaunchConfiguration> = (
   action,
   argv,
-  cwd,
+  cwd = Maybe.None(),
 ) => {
   // TODO: Only launch for now
   if (action !== "launch") {
     console.warn("node supports only launch");
-    return;
+    return Maybe.None();
   }
 
-  const config: NodeLaunchConfiguration = {
-    type: "node",
-    request: "launch",
-    name: `Cdb: node`,
-  };
-
-  const [runtime, ...rest] = argv;
-  if (isPathToProgram("node", runtime)) {
-    if (runtime !== "node") {
-      config.runtimeExecutable = maybeResolve(cwd, runtime);
-    }
-
-    const [runtimeArgs, args] = partition(isNodeScriptArg, rest);
-
-    if (runtimeArgs.length > 0) {
-      config.runtimeArgs = runtimeArgs;
-    }
-    argv = args;
-  }
-
-  return match(argv)
-    .with(scriptWithArgs, ([program, ...args]) => ({
-      ...config,
-      program: maybeResolve(cwd, program),
-      ...(args.length > 0 && { args }),
+  const [runtimeArgv, programArgv] = List.partition(isNodeScriptArg, argv);
+  return Result.all([
+    parseRuntimeArgv(runtimeArgv, cwd),
+    parseProgramArgv(programArgv, cwd),
+  ])
+    .map(([runtimeParams, programParams]) => ({
+      name: `Cdb: node`,
+      type: "node" as "node",
+      request: "launch" as "launch",
+      ...runtimeParams,
+      ...programParams,
     }))
-    .otherwise(() => {
-      console.warn("Cannot debug this command");
-      return undefined;
-    });
+    .tapError(console.error)
+    .toOption();
 };
