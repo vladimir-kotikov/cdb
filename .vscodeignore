@@ -12,3 +12,7 @@ esbuild.js
 **/*.map
 **/*.ts
 **/.vscode-test.*
+
+.tool-versions
+Makefile
+

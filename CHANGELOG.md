@@ -2,7 +2,11 @@
 
 All notable changes to the "cdb" extension will be documented in this file.
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+## 0.3.0
+
+Pre-reloase for 0.4.0
+
+- Add nodejs support
 
 ## 0.2.1
 
