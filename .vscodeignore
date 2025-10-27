@@ -5,8 +5,10 @@ node_modules/**
 src/**
 .gitignore
 .npmrc
+.envrc
 .editorconfig
 esbuild.js
+jest.config.js
 **/tsconfig.json
 **/eslint.config.mjs
 **/*.map

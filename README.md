@@ -18,9 +18,8 @@ palette - "CDB: Install shell command" which does exactly that. The 'cdb' is
 installed into '/usr/local/bin' directory - the same directory where 'code'
 command is installed.
 
-After installing you can start debuggig by running `cdb <debug targer> <arguments>`,
-e.g. `cdb python -m my_module arg1 arg2`. At the moment only Python debugging is
-supported, e.g.:
+After installing you can start debugging by running `cdb <debug target> <arguments>`,
+e.g. `cdb python -m my_module arg1 arg2` or `cdb node myscript.js`. A few examples:
 
 - `cdb /my/python/distro/python -m foo.bar --baz` - starts debugging of a python module
 - `cdb python some/script.py --arg` - starts debugging of a python script/file

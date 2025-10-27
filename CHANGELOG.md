@@ -2,6 +2,10 @@
 
 All notable changes to the "cdb" extension will be documented in this file.
 
+## 0.4.0
+
+- Add nodejs support
+
 ## 0.3.0
 
 Pre-reloase for 0.4.0
