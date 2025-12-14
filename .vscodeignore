@@ -7,6 +7,7 @@ src/**
 .npmrc
 .envrc
 .editorconfig
+.github/
 esbuild.js
 jest.config.js
 **/tsconfig.json
@@ -17,4 +18,3 @@ jest.config.js
 
 .tool-versions
 Makefile
-
