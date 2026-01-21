@@ -2,6 +2,10 @@
 
 All notable changes to the "cdb" extension will be documented in this file.
 
+## 0.4.2
+
+- Remove command to generate debugger specs to reduce the bundle size
+
 ## 0.4.1
 
 - Hotfix for extension startup failure
