@@ -1,0 +1,345 @@
+{
+  "inputs": {
+    "src/commands.ts": {
+      "bytes": 463,
+      "imports": [
+        {
+          "path": "node:child_process",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "node_modules/@swan-io/boxed/dist/Boxed.js": {
+      "bytes": 14770,
+      "imports": [],
+      "format": "cjs"
+    },
+    "node_modules/ts-pattern/dist/index.js": {
+      "bytes": 8130,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/lib/collections.ts": {
+      "bytes": 1074,
+      "imports": [
+        {
+          "path": "node_modules/@swan-io/boxed/dist/Boxed.js",
+          "kind": "import-statement",
+          "original": "@swan-io/boxed"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/lib/curry.ts": {
+      "bytes": 1216,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/lib/operators.ts": {
+      "bytes": 896,
+      "imports": [
+        {
+          "path": "src/lib/curry.ts",
+          "kind": "import-statement",
+          "original": "./curry"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/lib/path.ts": {
+      "bytes": 617,
+      "imports": [
+        {
+          "path": "@swan-io/boxed",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "path",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "src/lib/curry.ts",
+          "kind": "import-statement",
+          "original": "./curry"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/config_adapters/debugpy_adapter.ts": {
+      "bytes": 3067,
+      "imports": [
+        {
+          "path": "node_modules/@swan-io/boxed/dist/Boxed.js",
+          "kind": "import-statement",
+          "original": "@swan-io/boxed"
+        },
+        {
+          "path": "node_modules/ts-pattern/dist/index.js",
+          "kind": "import-statement",
+          "original": "ts-pattern"
+        },
+        {
+          "path": ".",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "src/lib/collections.ts",
+          "kind": "import-statement",
+          "original": "../lib/collections"
+        },
+        {
+          "path": "src/lib/operators.ts",
+          "kind": "import-statement",
+          "original": "../lib/operators"
+        },
+        {
+          "path": "src/lib/path.ts",
+          "kind": "import-statement",
+          "original": "../lib/path"
+        },
+        {
+          "path": "./debugpy_schema",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/config_adapters/node_adapter.ts": {
+      "bytes": 2545,
+      "imports": [
+        {
+          "path": "node_modules/@swan-io/boxed/dist/Boxed.js",
+          "kind": "import-statement",
+          "original": "@swan-io/boxed"
+        },
+        {
+          "path": "node_modules/ts-pattern/dist/index.js",
+          "kind": "import-statement",
+          "original": "ts-pattern"
+        },
+        {
+          "path": ".",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "src/lib/collections.ts",
+          "kind": "import-statement",
+          "original": "../lib/collections"
+        },
+        {
+          "path": "src/lib/operators.ts",
+          "kind": "import-statement",
+          "original": "../lib/operators"
+        },
+        {
+          "path": "src/lib/path.ts",
+          "kind": "import-statement",
+          "original": "../lib/path"
+        },
+        {
+          "path": "./node_schema",
+          "kind": "import-statement",
+          "external": true
+        }
+      ],
+      "format": "esm"
+    },
+    "src/config_adapters/index.ts": {
+      "bytes": 475,
+      "imports": [
+        {
+          "path": "@swan-io/boxed",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "vscode",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "src/config_adapters/debugpy_adapter.ts",
+          "kind": "import-statement",
+          "original": "./debugpy_adapter"
+        },
+        {
+          "path": "src/config_adapters/node_adapter.ts",
+          "kind": "import-statement",
+          "original": "./node_adapter"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/uri_handler.ts": {
+      "bytes": 2133,
+      "imports": [
+        {
+          "path": "node_modules/@swan-io/boxed/dist/Boxed.js",
+          "kind": "import-statement",
+          "original": "@swan-io/boxed"
+        },
+        {
+          "path": "node_modules/ts-pattern/dist/index.js",
+          "kind": "import-statement",
+          "original": "ts-pattern"
+        },
+        {
+          "path": "url",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "vscode",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "vscode",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "src/config_adapters/index.ts",
+          "kind": "import-statement",
+          "original": "./config_adapters"
+        },
+        {
+          "path": "src/lib/curry.ts",
+          "kind": "import-statement",
+          "original": "./lib/curry"
+        },
+        {
+          "path": "src/lib/operators.ts",
+          "kind": "import-statement",
+          "original": "./lib/operators"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/extension.ts": {
+      "bytes": 409,
+      "imports": [
+        {
+          "path": "vscode",
+          "kind": "import-statement",
+          "external": true
+        },
+        {
+          "path": "src/commands.ts",
+          "kind": "import-statement",
+          "original": "./commands"
+        },
+        {
+          "path": "src/uri_handler.ts",
+          "kind": "import-statement",
+          "original": "./uri_handler"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "dist/extension.js": {
+      "imports": [
+        {
+          "path": "vscode",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "node:child_process",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "node:path",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "node:util",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "url",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "vscode",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "vscode",
+          "kind": "require-call",
+          "external": true
+        },
+        {
+          "path": "path",
+          "kind": "require-call",
+          "external": true
+        }
+      ],
+      "exports": [],
+      "entryPoint": "src/extension.ts",
+      "inputs": {
+        "node_modules/@swan-io/boxed/dist/Boxed.js": {
+          "bytesInOutput": 14706
+        },
+        "src/extension.ts": {
+          "bytesInOutput": 263
+        },
+        "src/commands.ts": {
+          "bytesInOutput": 299
+        },
+        "src/uri_handler.ts": {
+          "bytesInOutput": 901
+        },
+        "node_modules/ts-pattern/dist/index.js": {
+          "bytesInOutput": 7953
+        },
+        "src/config_adapters/debugpy_adapter.ts": {
+          "bytesInOutput": 1273
+        },
+        "src/lib/collections.ts": {
+          "bytesInOutput": 274
+        },
+        "src/lib/curry.ts": {
+          "bytesInOutput": 93
+        },
+        "src/lib/operators.ts": {
+          "bytesInOutput": 122
+        },
+        "src/lib/path.ts": {
+          "bytesInOutput": 233
+        },
+        "src/config_adapters/node_adapter.ts": {
+          "bytesInOutput": 839
+        },
+        "src/config_adapters/index.ts": {
+          "bytesInOutput": 15
+        }
+      },
+      "bytes": 27663
+    }
+  }
+}
